@@ -1,13 +1,14 @@
-#include <raylib.h>
-#include <raymath.h>
+#include "raylib.h"
+#include "raymath.h"
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
-const Color BACKGROUND_COLOR = (Color){40, 44, 51, 100};
-const Color PARTICLE_COLOR = (Color){106, 136, 84, 255};
+// Here you can change the backgroun and particle color.
+const Color BACKGROUND_COLOR = {40, 44, 51, 100};
+const Color PARTICLE_COLOR = {152, 195, 121, 100};
 
 const int MIN_PARTICLE_DURATION = 60 * 2;
 const int MAX_PARTICLE_DURATION = 60 * 8;
@@ -50,8 +51,8 @@ int main(int argc, char *argv[]) {
 
   InitWindow(0, 0, "");
   printf("Monitor w: %d\n", GetScreenWidth());
-  const int screenWidth = (int)GetScreenWidth() * 0.6;
-  const int screenHeight = (int)GetScreenHeight() * 0.6;
+  const int screenWidth = (int)GetScreenWidth() * 0.8;
+  const int screenHeight = (int)GetScreenHeight() * 0.8;
   CloseWindow();
 
   SetRandomSeed((unsigned int)time(NULL));
@@ -78,7 +79,6 @@ int main(int argc, char *argv[]) {
     keepOpenTime = atof(argv[1]) * 60.0;
   }
   float timeLeft = keepOpenTime;
-  float smoothTimeLeft = timeLeft;
 
   while (!WindowShouldClose()) {
 
@@ -102,29 +102,23 @@ int main(int argc, char *argv[]) {
       DrawPixelV(particles[i].pos, particles[i].color);
     }
 
+    // How much time do we have left? Get the progress.
     timeLeft -= GetFrameTime();
-
-    //smoothTimeLeft += (timeLeft - smoothTimeLeft) * 0.01;
-
-    // float progress = smoothTimeLeft / keepOpenTime;
     float progress = timeLeft / keepOpenTime;
-
-
+    // Width of bar.
+    float progressWidth = progress * screenWidth;
+    progressWidth = Lerp(progressWidth, (int)progressWidth, 1);
+    
 
     DrawRectangle(0, screenHeight - barHeight, screenWidth, barHeight,
                   (Color){106, 136, 84, 255});
 
-    float placeholder = progress * screenWidth;
-    printf("%f\n", placeholder);
-    placeholder = Lerp(placeholder, (int)placeholder, 1);
-    printf("%f\n", placeholder);
-    //printf("%f\n", placeholder);
-    
-    DrawRectangle(0, screenHeight - barHeight, (int)placeholder, barHeight,
+    DrawRectangle(0, screenHeight - barHeight, (int)progressWidth, barHeight,
                   (Color){152, 195, 121, 255});
 
     EndDrawing();
 
+    // Break when no time left.
     if (timeLeft <= 0){
       break;
     }
@@ -186,7 +180,7 @@ void initialize_particles(Particle_t *particle, int screenWidth,
 
 void attract(Particle_t *particle, Vector2 attractorPos, float force) {
 
-  float dist = fmax(getDist(particle->pos, attractorPos), 0.5);
+  float dist = fmax(getDist(particle->pos, attractorPos), force);
   Vector2 normal = getDirectionVector(particle->pos, attractorPos);
 
   particle->vel.x -= normal.x / dist;
