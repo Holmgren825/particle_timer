@@ -14,6 +14,10 @@ const int MIN_PARTICLE_DURATION = 60 * 2;
 const int MAX_PARTICLE_DURATION = 60 * 8;
 const int MINFORCE = 1;
 const int MAXFORCE = 1;
+const int EASING_TYPE = 1;
+const float PROGRESS_SMOOTHNESS = 0.85f; // Smoothing factor between frames (0-1)
+const float ANIMATION_AMPLITUDE = 0.5f;  // How much the animation affects the edge (in pixels)
+const float ANIMATION_SPEED = 2.0f;      // Speed of the animation
 const int barHeight = 20;
 
 #define UPDATE_SPEED 60
@@ -45,6 +49,10 @@ void doFriction(Particle_t *particle, float friction);
 void move(Particle_t *particle, int screenWidth, int screenHeight);
 float getDist(Vector2 pos, Vector2 otherPos);
 Vector2 getDirectionVector(Vector2 pos, Vector2 otherPos);
+float easeOutCubic(float t); 
+float applyEasing(float progress, int easingType);
+
+
 double keepOpenTime = 60.0;
 
 int main(int argc, char *argv[]) {
@@ -54,6 +62,8 @@ int main(int argc, char *argv[]) {
   const int screenWidth = (int)GetScreenWidth() * 0.8;
   const int screenHeight = (int)GetScreenHeight() * 0.8;
   CloseWindow();
+
+  float smoothedProgressWidth = (float)screenWidth;
 
   SetRandomSeed((unsigned int)time(NULL));
 
@@ -104,17 +114,32 @@ int main(int argc, char *argv[]) {
 
     // How much time do we have left? Get the progress.
     timeLeft -= GetFrameTime();
-    float progress = timeLeft / keepOpenTime;
+    float linearProgress = timeLeft / keepOpenTime;
+    linearProgress = fmaxf(0.0f, fminf(1.0f, linearProgress));
     // Width of bar.
-    float progressWidth = progress * screenWidth;
-    progressWidth = Lerp(progressWidth, (int)progressWidth, 1);
-    
+    float easedProgress = applyEasing(linearProgress, EASING_TYPE);
+
+    float targetProgressWidth = easedProgress * screenWidth;
+
+    // Apply smoothing between frames to prevent jumps
+    smoothedProgressWidth = Lerp(smoothedProgressWidth, targetProgressWidth, PROGRESS_SMOOTHNESS * GetFrameTime() * 10.0f);
+
+    // Calculate the progress bar pixels
+    int solidWidth = (int)smoothedProgressWidth;
+    float fractionalPart = smoothedProgressWidth - solidWidth;
+
 
     DrawRectangle(0, screenHeight - barHeight, screenWidth, barHeight,
                   (Color){106, 136, 84, 255});
 
-    DrawRectangle(0, screenHeight - barHeight, (int)progressWidth, barHeight,
+    DrawRectangle(0, screenHeight - barHeight, solidWidth, barHeight,
                   (Color){152, 195, 121, 255});
+
+    if (solidWidth < screenWidth && fractionalPart > 0.0f) {
+        DrawRectangle(solidWidth, screenHeight - barHeight, 1, barHeight,
+                      (Color){152, 195, 121, (unsigned char)(255.0f * fractionalPart)});
+    }
+
 
     EndDrawing();
 
@@ -218,4 +243,25 @@ Vector2 getDirectionVector(Vector2 pos, Vector2 otherPos) {
   const float dy = pos.y - otherPos.y;
   Vector2 normal = (Vector2){dx * (1 / dist), dy * (1 / dist)};
   return normal;
+}
+
+// Add this function to implement cubic ease-out
+float easeOutCubic(float t) {
+    // t is the linear progress value between 0.0 and 1.0
+    // Returns a value between 0.0 and 1.0 with easing applied
+    float f = t - 1.0f;
+    return f * f * f + 1.0f;
+}
+
+// Add this function for general purpose easing
+float applyEasing(float progress, int easingType) {
+    // Currently only implementing cubic ease-out, but you could add more types
+    switch (easingType) {
+        case 0: // Linear (no easing)
+            return progress;
+        case 1: // Cubic ease-out
+            return easeOutCubic(progress);
+        default:
+            return progress;
+    }
 }
